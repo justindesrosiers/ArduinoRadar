@@ -8,6 +8,9 @@
 #define DC 9
 #define RST 8
 
+#define TRIGGER 7
+#define ECHO 4
+
 TFT TFTscreen = TFT(CS, DC, RST);
 Servo servo;
 
@@ -25,14 +28,25 @@ int clearIteration;
 float lineAngle;
 float adder;
 
+int lineR = 0;
+int lineG = 255;
+int lineB = 20;
+
 int radialPointY = TFTscreen.height() + 17;
 int radialPointX = TFTscreen.width() / 2;
+int motorPosition = 0;
+
+int distance;
+long duration;
 
 void setup() {
   Serial.begin(9600);
   TFTscreen.begin();
   TFTscreen.stroke(50, 255, 140);
   TFTscreen.background(0, 0, 0);
+
+  pinMode(TRIGGER, OUTPUT);
+  pinMode(ECHO, INPUT);
 
   servo.attach(6);
   servo.write(0);
@@ -62,6 +76,28 @@ void loop() {
 }
 void CheckDetection()
 {
+  digitalWrite(TRIGGER, LOW);
+  delayMicroseconds(2);
+  digitalWrite(TRIGGER, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(TRIGGER, LOW);
+
+  duration = pulseIn(ECHO, HIGH);
+  distance = duration * 0.034 / 2;
+  Serial.print("Distance: ");
+  Serial.println(distance);
+  if(distance < 100)
+  {
+    lineR = 0;
+    lineG = 10;
+    lineB = 200;
+  }
+  else
+  {
+    lineR = 0;
+    lineG = 255;
+    lineB = 20;
+  }
   if(random(0, 10) == 5)
   {
     TFTscreen.stroke(0, 10, 200);
@@ -71,19 +107,24 @@ void CheckDetection()
 
 void TurnMotor()
 {
-  Serial.println(map(lineAngle * -1, ANGLELOW, ANGLEHIGH, 1, 31));
+  //Serial.println(map(lineAngle < 0 ? lineAngle * -1 : lineAngle, ANGLELOW, ANGLEHIGH, 1, 31));
+  Serial.print("Angle: ");
+  motorPosition = lineAngle * (180 / 3.14);
+  if(motorPosition < 0) motorPosition *= -1; 
+  Serial.println(motorPosition);
+  servo.write(motorPosition);
 }
 
 void DrawLine()
 {
-  TFTscreen.stroke(0, 255, 20);
+  TFTscreen.stroke(lineR, lineG, lineB);
   // Draw a line from circle centers to center top of screen
   TFTscreen.line(lineStartX, lineStartY, lineEndX, lineEndY);
   if(lineAngle < ANGLELOW || lineAngle > ANGLEHIGH) adder = adder * -1;
   lineAngle += adder;
   lineEndX = (lineStartX + radialPointY) * cos(lineAngle);
   lineEndY = (lineStartY + radialPointY) * sin(lineAngle);
-  Serial.println(lineAngle);
+  //Serial.println(lineAngle);
   if(iteration == clearIteration)
   {
     iteration = 0;
